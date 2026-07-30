@@ -1,0 +1,17 @@
+# Python virtual environment
+.venv/
+venv/
+ENV/
+
+# Byte-compiled / optimized files
+__pycache__/
+*.py[cod]
+
+# Sensitive Data / PDFs (protect personal utility bills)
+*.pdf
+*.csv
+*.xlsx
+*.json
+
+# Environment variables / secrets
+.env
