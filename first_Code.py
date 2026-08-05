@@ -12,7 +12,7 @@ def parse_toronto_hydro_bill(pdf_path: Path) -> dict[str, str]:
     data = {
         "File Name": pdf_path.name,
         "Reporting Month": "Unknown",
-        "Amount Due": "Not found",
+        "Total Charges + HST": "Not found",
         "Meter Number": "Not found",
         "Meter Reading Period": "Not found",
         "Number of Days": "Not found",
@@ -25,11 +25,13 @@ def parse_toronto_hydro_bill(pdf_path: Path) -> dict[str, str]:
         lines = page1_text.split("\n")
 
         for i, line in enumerate(lines):
-            # 1. Amount Due
-            if "Total Amount Due" in line or "Amount Due:" in line:
-                m = re.search(r"\$\s*([\d,]+\.\d{2})", line)
-                if m:
-                    data["Amount Due"] = f"${m.group(1)}"
+            # 1. Total Charges + HST (Flexible pattern matching)
+            # Searches for common labels like "Total Charges", "Total Amount Due", "Total New Charges"
+            if data["Total Charges + HST"] == "Not found":
+                if re.search(r"total\s+(charges|amount|new\s+charges)", line, re.IGNORECASE):
+                    m = re.search(r"\$\s*([\d,]+\.\d{2})", line)
+                    if m:
+                        data["Total Charges + HST"] = f"${m.group(1)}"
 
             # 2. Meter Details
             if "Meter Reading Period" in line and i + 1 < len(lines):
@@ -57,6 +59,12 @@ def parse_toronto_hydro_bill(pdf_path: Path) -> dict[str, str]:
                         if len(floats) >= 2:
                             data["Adj kW"] = floats[1]
                             break
+
+        # Fallback for Total Charges: If not found on page 1, search the entire page for any dollar figure near "Total"
+        if data["Total Charges + HST"] == "Not found":
+            fallback_match = re.search(r"(?:Total|Amount Due|New Charges)[^\$\n]*\$\s*([\d,]+\.\d{2})", page1_text, re.IGNORECASE)
+            if fallback_match:
+                data["Total Charges + HST"] = f"${fallback_match.group(1)}"
 
     # Calculate Reporting Month based on the midpoint (majority of days) of the reading period
     if data["Meter Reading Period"] != "Not found":
@@ -86,7 +94,6 @@ def parse_toronto_hydro_bill(pdf_path: Path) -> dict[str, str]:
 
 
 def main() -> None:
-    #adjust the path to your folder containing the PDF bills
     folder_path = Path(
         r"C:\Users\Janie_Ma\OneDrive - CAMH\Documents\CAMH Code\.venv\Hydro Utility Bills\E Block"
     )
@@ -94,7 +101,7 @@ def main() -> None:
     if not folder_path.exists():
         print(f"Error: Folder does not exist at {folder_path}")
         return
-#Sorts the PDF files in the folder and only processes those that have the prefix "TH_4XXXXXXXX0_" in their filename. Can sort by year eg, "TH_4622301000_2023_*.pdf"
+
     pdf_files = sorted(folder_path.glob("TH_*.pdf"))
 
     if not pdf_files:
@@ -118,4 +125,4 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main()
+    main()p
